@@ -1,11 +1,8 @@
 #!/bin/bash -x
-echo "##############################  WELCOME TO TIC TAC TOE  ########################"
 
 # CONSTANTS
 declare BOARD_SIZE=9;
 declare MATRIX_SIZE=3;
-declare CROSS_SYMBOL=X;
-declare ZERO_SYMBOL=0;
 declare TRUE=1
 declare FALSE=0
 
@@ -27,14 +24,17 @@ function resettingBoard() {
 
 # PRINTING BOARD
 function printBoard() {
+	echo -e "                   	 ************************************************************************"
+	echo -e "                    	 ******************************  TIC TAC TOE  ***************************"
+	echo -e "                    	 ************************************************************************"
 	cell=1;
 	for (( i=1; i <= $MATRIX_SIZE; i++ ));
 		do
-			echo "							+---+---+---+";
-			echo "							| ${board[$cell]} | ${board[$(($cell+1))]} | ${board[$(($cell+2))]} |"
+			echo "   							+---+---+---+";
+			echo "	   						| ${board[$cell]} | ${board[$(($cell+1))]} | ${board[$(($cell+2))]} |"
 			cell=$(($cell+3))
 		done
-			echo "							+---+---+---+";
+			echo "		   					+---+---+---+";
 }
 
 # INITIALIZING SYMBOL TO PLAYERS
@@ -42,11 +42,11 @@ function assignSymbol() {
 	randomCheck=$((RANDOM%2))
    if [ $randomCheck -eq 0 ];
 	then
-		playerSymbol=$CROSS_SYMBOL
-      computerSymbol=$ZERO_SYMBOL
+		playerSymbol=X
+      computerSymbol=0
 	else
-		computerSymbol=$ZERO_SYMBOL
-		playerSymbol=$CROSS_SYMBOL
+		computerSymbol=0
+		playerSymbol=X
 	fi
 }
 
@@ -65,49 +65,37 @@ function toss() {
 
 # CHECKING IF BOARD IS FULL OR NOT
 function isBoardFull() {
-	flag=1;
-	for (( cell=1; $cell <= $BOARD_SIZE; cell++ ));
-	do
-		if [[ ${board[$cell]} == '_' ]];
-		then
-			flag=$(( $flag - 1 ));
-			break;
-		fi
-	done
-	echo $flag;
-}
-
-# CHECKING IF CELL IS EMPTY OR NOT
-function checkCell() {
-	if [[ ${board[$1]} == $playerSymbol || ${board[$1]} == $computerSymbol ]];
+	if [[ $winningFlag -eq $TRUE ]];
 	then
-		echo $TRUE;
-	else
-		echo $FALSE;
+		flag=$TRUE;
+		for (( cell=1; $cell <= $BOARD_SIZE; cell++ ));
+		do
+			if [[ ${board[$cell]} == "_" ]];
+			then
+				flag=$(( $flag - 1 ));
+				break;
+			fi
+		done
+
+		if [[ $flag -eq $TRUE ]];
+		then
+			winningFlag=$TRUE;
+      			echo "*************** Game is tied as board is full  ****************";
+		fi
 	fi
 }
 
 # PLAYER IS PLAYING 
 function playerTurn() {
 	echo "Player's turn"
-	printBoard;
 	echo "Enter the cell no from 1 to 9 to mark $playerSymbol"
 	read cellNumber;
-	cellCheck=$(checkCell $cellNumber)
-	if [ $cellCheck -eq $FALSE ];
+	if [ ${board[$cellNumber]} == '_' ];
 	then
 		board[$cellNumber]=$playerSymbol
-		printBoard
 	else
-		verifiedBoard=$(isBoardFull)
-      if [[ $verifiedBoard -eq $TRUE ]];
-      then
-         winningFlag=$(( $winningFlag + 1)) 
-         echo "*************** Game is Drawed as no space is left ****************"
-      else
-			echo "As it has already being marked. Please select some other cell between 0 to 9"
-      	playerTurn
-      fi
+		echo "As it has already being marked. Please select some other cell between 0 to 9"
+     	playerTurn
 	fi
 }
 
@@ -150,11 +138,11 @@ function checkDiagonalWinningCondition() {
 	j=3;
 	cellNumber=0;
 	cellNumber=$(getCellNumber $i $(($i+4)) $(($i+8)) $1)
-	if [[ $cellnumber != 0 ]];
+	if [[ $cellNumber != 0 ]];
 	then
 		echo $cellNumber;
 	else
-		cellNumber=$(getCellNumber $j $(($j+2)) $(($j+4)))
+		cellNumber=$(getCellNumber $j $(($j+2)) $(($j+4)) $1)
 		if [[ $cellNumber != 0 ]];
 		then
 			echo $cellNumber;
@@ -174,18 +162,9 @@ function checkWinningConditions() {
 		if [[ $cellNumber == 0 ]];
 		then
 			cellNumber=$(checkDiagonalWinningCondition $1);
-			if [[ $cellNumber == 0 ]];
-			then
-				echo 0;
-			else
-				echo $cellNumber;
-			fi
-		else
-			echo $cellNumber;
 		fi
-	else
-		echo $cellNumber;
 	fi
+	echo $cellNumber;
 }
 
 # GENERATING CELL NUMBER
@@ -213,20 +192,17 @@ function getCellNumber() {
 
 # CHECKING FOR CORNERS
 function checkCorners() {
-	cell=1;
 	cellNumber=0;
-	for (( i=0; i<4; i++ ));
+	for (( i=1; i<=$BOARD_SIZE; i=$(($i+2)) ));
 	do
-		if [[ ${board[$cell]} == '_' ]];
+		if [[ ${board[$i]} == '_' ]];
 		then
-			cellNumber=$cell;
+			cellNumber=$i;
 			break;
 		else
-			if [[ $cell == 3 ]];
+			if [[ $i == 3 ]];
 			then
-				cell=$(($cell*2+1));
-			else
-				cell=$(($cell+2));
+				i=$(($i+2));
 			fi
 		fi
 	done
@@ -252,48 +228,42 @@ function checkCentre() {
 	fi
 }
 
+# CHECK FOR COMPUTER WINNING OR BLOCKING OPPONENT CONDITIONS
+function winningOrBlockingConditions() {
+	randomCellNumber=$(checkWinningConditions $computerSymbol)
+   if [[ $randomCellNumber == 0 ]];
+   then
+      randomCellNumber=$(checkWinningConditions $playerSymbol)
+      if [[ $randomCellNumber == 0 ]];
+      then
+         randomCellNumber=$(checkCorners);
+         if [[ $randomCellNumber == 0 ]];
+         then
+            randomCellNumber=$(checkCentre);
+         fi
+      fi
+   fi
+	echo $randomCellNumber;
+}
+
 # COMPUTER IS PLAYING
 function computerTurn() {
-	echo "Computer's Turn marking $computerSymbol"
-	#randomCellNumber=$((RANDOM % 9 + 1))
-
-	randomCellNumber=$(checkWinningConditions $computerSymbol)
-	if [[ $randomCellNumber == 0 ]];
-	then
-		randomCellNumber=$(checkWinningConditions $playerSymbol)
-		if [[ $randomCellNumber == 0 ]];
-		then
-			randomCellNumber=$(checkCorners);
-			if [[ $randomCellNumber == 0 ]];
-			then
-				randomCellNumber=$(checkCentre);
-			fi
-		fi
-	fi
-
-	cellCheck=$(checkCell $randomCellNumber)
-   if [[ $cellCheck -eq $FALSE ]];
+	echo "Computer's Turn"
+	randomCellNumber=$(winningOrBlockingConditions)
+   if [[ ${board[$randomCellNumber]} == '_' ]];
    then
       board[$randomCellNumber]=$computerSymbol
-   	printBoard
    else
-		verifiedBoard=$(isBoardFull)
-      if [[ $verifiedBoard -eq $TRUE ]];
-      then
-			winningFlag=$(( $winningFlag + 1)) 
-         echo "*************** Game is Drawed as no space is left ****************"
-     	else
-         computerTurn
-		fi
+      computerTurn
 	fi
 }
 
+#CHECKING FOR ROW CHARACTER
 function checkRow() {
 	cell=1;
 	for(( i=1; i<=$MATRIX_SIZE; i++ ));
 		do
-			verifiedRowColumn=$(checkRowColumn ${board[$cell]} ${board[$(( $cell + 1 ))]} ${board[$(( $cell + 2 ))]})
-			if [[ $verifiedRowColumn -eq $TRUE ]];
+			if [[ $(checkRowColumn $cell $(( $cell + 1 )) $(( $cell + 2 )) ) -eq $TRUE ]];
 			then
 				echo $TRUE;
 				break;
@@ -303,11 +273,11 @@ function checkRow() {
 		done
 }
 
+#CHECKING FOR COLUMN CHARACTER
 function checkColumn() {
 	for(( i=1; i<=$MATRIX_SIZE; i++ ));
       do
-         verifiedRowColumn=$(checkRowColumn ${board[$i]} ${board[$(( $i + 3 ))]} ${board[$(( $i + 6 ))]})
-         if [ $verifiedRowColumn -eq $TRUE ];
+			if [ $(checkRowColumn $i $(( $i + 3 )) $(( $i + 6 )) ) -eq $TRUE ];
          then
             echo $TRUE;
 				break;
@@ -315,22 +285,20 @@ function checkColumn() {
       done
 }
 
+# CHECKING FOR DIAGONAL CHARACTERS
 function checkDiagonals() {
 	i=1;
 	j=3;
-	verifiedDiagonal1=$(checkRowColumn ${board[$i]} ${board[$(( $i + 4 ))]} ${board[$(( $i + 8 ))]})
-	verifiedDiagonal2=$(checkRowColumn ${board[$j]} ${board[$(( $j + 2 ))]} ${board[$(( $j + 4 ))]})
-
-	if [[ $verifiedDiagonal1 -eq $TRUE || $verifiedDiagonal2 -eq $TRUE ]];
+	if [[ $(checkRowColumn $i $(( $i + 4 )) $(( $i + 8 )) ) -eq $TRUE || 
+			$(checkRowColumn $j $(( $j + 2 )) $(( $j + 4 )) ) -eq $TRUE ]];
 	then
 		echo $TRUE
-	else
-		echo $FALSE
 	fi
 }
 
+# CHECKING FOR CHARACTERS ARE EQUAL OR NOT
 function checkRowColumn() {
-	if [[ $1 != '_' && $1 == $2 && $2 == $3 ]];
+	if [[ ${board[$1]} != '_' && ${board[$1]} == ${board[$2]} && ${board[$2]} == ${board[$3]} ]];
 	then
 		echo $TRUE
 	else
@@ -340,82 +308,49 @@ function checkRowColumn() {
 
 # CHECKING FOR WINNING CONDITIONS
 function checkWinner() {
-	verifiedRow=$(checkRow)
-	verifiedColumn=$(checkColumn)
-  	verifiedDiagonals=$(checkDiagonals)
-	if [[ $verifiedRow == $TRUE || $verifiedColumn == $TRUE || $verifiedDiagonals == $TRUE ]];
+	if [[ $(checkRow) == $TRUE || $(checkColumn) == $TRUE || $(checkDiagonals) == $TRUE ]];
 	then
-		echo $TRUE;
-	else
-		echo $FALSE;
+		winningFlag=$TRUE;
+		printWinningMessage $1
 	fi
 }
 
 
 # STARTED PLAYING GAME
 function play() {
-
+		currentPlayer=$1;
 		while [[ $winningFlag -eq $FALSE ]];
 		do
-			verifiedBoard=$(isBoardFull)
-			if [[ $verifiedBoard -eq $TRUE ]];
-			then
-				echo "*************** Game is Drawed as no space is left ****************";
-				break;
-			fi
-
-			if [[ $1 -eq 1 ]];
+			#isBoardFull
+			if [[ $currentPlayer -eq 1 ]];
 			then
 				playerTurn
-				winningFlag=$(checkWinner)
-   	      if [[ $winningFlag -eq $TRUE ]];
-      	   then
-         	   echo -e "\n\n *****************\U1F603  Player won the game  \U1F603***************** \n\n";
-            	break;
-         	fi
+				clear
+				printBoard
+				currentPlayer=0;
 			else
 				computerTurn
-				winningFlag=$(checkWinner)
-	         if [[ $winningFlag -eq $TRUE ]];
-   	      then
-      	      echo -e "\n\n *****************\U1F603  Computer won the game  \U1F603*****************\n\n";
-         	   break;
-         	fi
-
+				clear
+				printBoard
+				currentPlayer=1;
 			fi
-
-			verifiedBoard=$(isBoardFull)
-         if [[ $verifiedBoard -eq $TRUE ]];
-         then
-            echo "*************** Game is Drawed as no space is left ****************";
-            break;
-         fi
-
-			if [[ $1 -eq 1 ]];
-			then
-				computerTurn
-				winningFlag=$(checkWinner)
-         	if [[ $winningFlag -eq $TRUE ]];
-         	then
-            	echo -e "\n\n*****************\U1F603  Computer won the game  \U1F603***************** \n\n";
-            	break;
-         	fi
-			else
-				playerTurn
-				winningFlag=$(checkWinner)
-         	if [[ $winningFlag -eq $TRUE ]];
-         	then
-            	echo -e "\n\n *****************\U1F603  Player won the game  \U1F603*****************\n\n";
-            	break;
-         	fi
-			fi
-		done
+      	                checkWinner $currentPlayer
+			isBoardFull 
+      done
 }
+
+function printWinningMessage() {
+	if [[ $1 == 1 ]];
+	then
+      echo -e "\n\n *****************  \U1F603  Computer won the game  \U1F603  *****************\n\n"
+	else
+      echo -e "\n\n *****************  \U1F603  Player won the game  \U1F603  *****************\n\n"
+	fi
+}
+
 
 resettingBoard
 printBoard
 assignSymbol
-echo "PLayer : $playerSymbol | COMPUTER : $computerSymbol "
 tossWinningPlayer=$(toss)
-echo "PLayer : $playerSymbol | COMPUTER : $computerSymbol "
 play $tossWinningPlayer
